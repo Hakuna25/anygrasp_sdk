@@ -13,11 +13,11 @@ from graspnetAPI import GraspGroup
 parser = argparse.ArgumentParser()
 parser.add_argument('--checkpoint_path', required=True, help='Model checkpoint path')
 parser.add_argument('--max_gripper_width', type=float, default=0.15, help='Maximum gripper width (<=0.1m)')
-parser.add_argument('--gripper_height', type=float, default=0.02, help='Gripper height')
+parser.add_argument('--gripper_height', type=float, default=0.03, help='Gripper height')
 parser.add_argument('--camera_height', type=float, default=0.5, help='Camera height')
 parser.add_argument('--top_down_grasp', action='store_true', help='Output top-down grasps.')
 parser.add_argument('--debug', action='store_true', help='Enable debug mode')
-parser.add_argument("--object_name", type=str, default="025_mug", help="Name of the object to load.")
+parser.add_argument("--object_name", type=str, default="011_banana", help="Name of the object to load.")
 cfgs = parser.parse_args()
 cfgs.max_gripper_width = max(0, min(0.1, cfgs.max_gripper_width))
 
@@ -74,21 +74,31 @@ def demo(data_dir):
         trans_mat = np.array([[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]])
         cloud.transform(trans_mat)
         
-        grippers = gg.to_open3d_geometry_list()
-        T_arr = np.eye(4)
-        T_arr[:3, :3] = gg[0].rotation_matrix
-        T_arr[:3, 3] = gg[0].translation
-        np.save('/home/xueqian/xq/anygrasp_sdk/grasp_detection/pose_info/' + cfgs.object_name + '.npy', T_arr)
-        file_path = '/home/xueqian/xq/anygrasp_sdk/grasp_detection/pose_info/width_info.csv'
-        if not os.path.exists(file_path):
-            df = pd.DataFrame()
-        else:
-            df = pd.read_csv(file_path)
-        if cfgs.object_name not in df.columns:
-            df[cfgs.object_name] = None  
-        df.at[0, cfgs.object_name] = gg[0].width
-        df.to_csv(file_path, index=False)
+        T_list = []
+        for i in range(10):
+            T_arr = np.eye(4)
+            T_arr[:3, :3] = gg[i].rotation_matrix
+            T_arr[:3, 3] = gg[i].translation
+            print("Rotation Matrix:", T_arr[:3, :3])
+            print("Translation Matrix:", T_arr[:3, 3])
+            T_list.append(T_arr)
+        T_pose = np.stack(T_list)
+        np.savez('/home/xueqian/xq/anygrasp_sdk/grasp_detection/pose_info/' + cfgs.object_name + '.npz', T_pose = T_pose)
+        print("Finish saving!")
+        data = np.load('/home/xueqian/xq/anygrasp_sdk/grasp_detection/pose_info/' + cfgs.object_name + '.npz')
+        T_pose = data['T_pose']
+        print(T_pose[0])
+        # file_path = '/home/xueqian/xq/anygrasp_sdk/grasp_detection/pose_info/width_info.csv'
+        # if not os.path.exists(file_path):
+        #     df = pd.DataFrame()
+        # else:
+        #     df = pd.read_csv(file_path)
+        # if cfgs.object_name not in df.columns:
+        #     df[cfgs.object_name] = None  
+        # df.at[0, cfgs.object_name] = gg[0].width
+        # df.to_csv(file_path, index=False)
         
+        grippers = gg.to_open3d_geometry_list()
         for gripper in grippers:
             gripper.transform(trans_mat)
             
